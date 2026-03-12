@@ -10,7 +10,7 @@ import time
 import sys
 
 # Configuration
-APP_ID = "857B94F0"
+APP_ID = "76719249"
 NAMESPACE = "urn:x-cast:com.casttest.custom"
 CHROMECAST_NAME = "Old Chromecast"  # Friendly name from Google Home
 

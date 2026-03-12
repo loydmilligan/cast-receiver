@@ -45,7 +45,7 @@ This document explains how to integrate Chromecast casting of arbitrary web cont
 3. Fill in:
    - **Name**: Your addon name (e.g., "HA Dashboard Cast")
    - **Receiver Application URL**: `http://<HA_IP>:<ADDON_PORT>/receiver.html`
-4. Save and note the **Application ID** (e.g., `857B94F0`)
+4. Save and note the **Application ID** (e.g., `76719249`)
 
 ### 3. Register Chromecast Devices for Testing
 
@@ -69,7 +69,7 @@ The addon settings UI should collect:
 
 | Field | Description | Example |
 |-------|-------------|---------|
-| `cast_app_id` | Application ID from Cast Console | `857B94F0` |
+| `cast_app_id` | Application ID from Cast Console | `76719249` |
 | `chromecast_devices` | List of registered device serial numbers | `["6920103PYB5A"]` |
 
 ### Optional (if you want device discovery):

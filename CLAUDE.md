@@ -61,7 +61,7 @@ npm run dev
 ## Configuration
 
 ### Cast App ID
-- **App ID:** `857B94F0`
+- **App ID:** `76719249`
 - **Console:** https://cast.google.com/publish
 - **Receiver URL in Console:** `http://192.168.4.158:9123/receiver.html`
 
@@ -89,7 +89,7 @@ The receiver listens for JSON messages on namespace `urn:x-cast:com.casttest.cus
 ## Manual Testing (Browser-based Sender)
 For debugging or testing without PyChromecast:
 1. Open `http://localhost:8080/sender.html` (must be localhost for Cast SDK)
-2. Enter App ID: `857B94F0`
+2. Enter App ID: `76719249`
 3. Click Initialize Cast
 4. Click Start Casting
 5. Enter URL and click Cast URL
