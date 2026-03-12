@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Cast Test Receiver</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: white;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      text-align: center;
+      padding: 40px;
+    }
+
+    .time {
+      font-size: 120px;
+      font-weight: 200;
+      letter-spacing: -4px;
+      text-shadow: 0 4px 30px rgba(0,0,0,0.5);
+    }
+
+    .date {
+      font-size: 32px;
+      opacity: 0.8;
+      margin-top: 10px;
+    }
+
+    .message {
+      font-size: 48px;
+      margin-top: 60px;
+      padding: 20px 40px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 16px;
+      backdrop-filter: blur(10px);
+    }
+
+    .status {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      font-size: 14px;
+      opacity: 0.5;
+    }
+
+    .dynamic-content {
+      margin-top: 40px;
+      font-size: 24px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="clockContainer">
+    <div class="time" id="time">--:--:--</div>
+    <div class="date" id="date">Loading...</div>
+    <div class="message" id="message">Cast Test Active</div>
+    <div class="dynamic-content" id="dynamic">Updates every second</div>
+  </div>
+  <div class="status" id="status">Receiver Ready</div>
+
+  <iframe id="urlFrame" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; border:none; z-index:1000;"></iframe>
+
+  <!-- Cast Receiver SDK -->
+  <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+
+  <script>
+    // Dynamic content updates
+    function updateTime() {
+      const now = new Date();
+      document.getElementById('time').textContent = now.toLocaleTimeString();
+      document.getElementById('date').textContent = now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      document.getElementById('dynamic').textContent = `Updated: ${now.toISOString()}`;
+    }
+
+    setInterval(updateTime, 1000);
+    updateTime();
+
+    // Initialize Cast Receiver
+    const context = cast.framework.CastReceiverContext.getInstance();
+    const playerManager = context.getPlayerManager();
+
+    // Handle custom messages from sender
+    const NAMESPACE = 'urn:x-cast:com.casttest.custom';
+
+    context.addCustomMessageListener(NAMESPACE, (event) => {
+      console.log('Received message:', event.data);
+
+      if (event.data.message) {
+        document.getElementById('message').textContent = event.data.message;
+      }
+
+      if (event.data.background) {
+        document.body.style.background = event.data.background;
+      }
+
+      if (event.data.loadUrl) {
+        console.log('Loading URL:', event.data.loadUrl);
+        const frame = document.getElementById('urlFrame');
+        const clock = document.getElementById('clockContainer');
+        frame.src = event.data.loadUrl;
+        frame.style.display = 'block';
+        clock.style.display = 'none';
+        document.getElementById('status').textContent = 'Showing: ' + event.data.loadUrl;
+      }
+
+      if (event.data.clearUrl) {
+        console.log('Clearing URL');
+        const frame = document.getElementById('urlFrame');
+        const clock = document.getElementById('clockContainer');
+        frame.src = '';
+        frame.style.display = 'none';
+        clock.style.display = 'block';
+        document.getElementById('status').textContent = 'Clock mode';
+      }
+    });
+
+    // Start the receiver
+    const options = new cast.framework.CastReceiverOptions();
+    options.disableIdleTimeout = true; // Keep receiver alive
+
+    context.start(options);
+    document.getElementById('status').textContent = 'Cast Receiver Connected';
+  </script>
+</body>
+</html>

@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cast Test - Sender</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #1a1a2e;
+      color: white;
+      min-height: 100vh;
+      padding: 40px;
+    }
+
+    h1 { margin-bottom: 10px; }
+    .subtitle { opacity: 0.6; margin-bottom: 40px; }
+
+    .card {
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      opacity: 0.8;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 20px;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #ff4444;
+    }
+
+    .status-dot.connected { background: #44ff44; }
+
+    button {
+      background: #4a5568;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
+
+    button:hover { background: #5a6578; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.primary { background: #3182ce; }
+    button.primary:hover { background: #4192de; }
+
+    input, textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      background: #2d2d44;
+      color: white;
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+
+    .cast-button {
+      --disconnected-color: #999;
+      --connected-color: #4285f4;
+      width: 48px;
+      height: 48px;
+    }
+
+    .log {
+      background: #0d0d15;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 13px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .log-entry { margin-bottom: 4px; opacity: 0.8; }
+    .log-entry.error { color: #ff6b6b; }
+    .log-entry.success { color: #69db7c; }
+
+    #appIdNotice {
+      background: #744210;
+      padding: 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cast Test Sender</h1>
+  <p class="subtitle">Control your Chromecast receiver</p>
+
+  <div id="appIdNotice" class="card">
+    <h2>⚠️ App ID Required</h2>
+    <p>Enter your Cast Application ID below. Get one from the <a href="https://cast.google.com/publish" target="_blank" style="color: #63b3ed;">Google Cast Developer Console</a></p>
+    <br>
+    <input type="text" id="appIdInput" placeholder="Enter your App ID (e.g., ABCD1234)">
+    <button onclick="initializeCast()">Initialize Cast</button>
+  </div>
+
+  <div class="card">
+    <h2>Connection Status</h2>
+    <div class="status">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Not initialized</span>
+    </div>
+    <br>
+    <google-cast-launcher class="cast-button" id="castButton"></google-cast-launcher>
+    <button class="primary" id="castToggleBtn" onclick="toggleCasting()" style="margin-top: 12px;">Start Casting</button>
+  </div>
+
+  <div class="card">
+    <h2>Cast a URL</h2>
+    <input type="text" id="urlInput" placeholder="Enter URL to display (e.g., http://192.168.4.217:8080/mypage.html)">
+    <button class="primary" onclick="castUrl()">Cast URL</button>
+    <button onclick="clearUrl()">Clear / Show Clock</button>
+  </div>
+
+  <div class="card">
+    <h2>Send Message to Receiver</h2>
+    <input type="text" id="messageInput" placeholder="Enter message to display">
+    <button class="primary" onclick="sendMessage()">Send Message</button>
+  </div>
+
+  <div class="card">
+    <h2>Change Background</h2>
+    <button onclick="sendBackground('linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)')">Default</button>
+    <button onclick="sendBackground('linear-gradient(135deg, #2d1b4e 0%, #1a0a2e 100%)')">Purple</button>
+    <button onclick="sendBackground('linear-gradient(135deg, #1b4e2d 0%, #0a2e1a 100%)')">Green</button>
+    <button onclick="sendBackground('linear-gradient(135deg, #4e1b1b 0%, #2e0a0a 100%)')">Red</button>
+  </div>
+
+  <div class="card">
+    <h2>Debug Log</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+  <script>
+    let castSession = null;
+    const NAMESPACE = 'urn:x-cast:com.casttest.custom';
+
+    function log(msg, type = '') {
+      const logEl = document.getElementById('log');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry ' + type;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log(msg);
+    }
+
+    function updateStatus(connected, text) {
+      document.getElementById('statusDot').className = 'status-dot' + (connected ? ' connected' : '');
+      document.getElementById('statusText').textContent = text;
+    }
+
+    function updateCastButton(connected) {
+      const btn = document.getElementById('castToggleBtn');
+      if (connected) {
+        btn.textContent = 'Stop Casting';
+        btn.style.background = '#c53030';
+      } else {
+        btn.textContent = 'Start Casting';
+        btn.style.background = '#3182ce';
+      }
+    }
+
+    function toggleCasting() {
+      if (castSession) {
+        log('Stopping cast session...');
+        castSession.endSession(true);
+      } else {
+        startCasting();
+      }
+    }
+
+    function initializeCastApi(appId) {
+      try {
+        log('Setting Cast options...');
+        cast.framework.CastContext.getInstance().setOptions({
+          receiverApplicationId: appId,
+          autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED
+        });
+        log('Cast options set');
+
+        const context = cast.framework.CastContext.getInstance();
+        log('Got CastContext instance');
+
+        context.addEventListener(
+          cast.framework.CastContextEventType.SESSION_STATE_CHANGED,
+          (event) => {
+            log(`Session state: ${event.sessionState}`);
+
+            if (event.sessionState === cast.framework.SessionState.SESSION_STARTED) {
+              castSession = context.getCurrentSession();
+              updateStatus(true, 'Connected to ' + castSession.getCastDevice().friendlyName);
+              updateCastButton(true);
+              log('Connected!', 'success');
+            } else if (event.sessionState === cast.framework.SessionState.SESSION_ENDED) {
+              castSession = null;
+              updateStatus(false, 'Disconnected');
+              updateCastButton(false);
+              log('Disconnected');
+            }
+          }
+        );
+
+        context.addEventListener(
+          cast.framework.CastContextEventType.CAST_STATE_CHANGED,
+          (event) => {
+            log(`Cast state: ${event.castState}`);
+          }
+        );
+
+        updateStatus(false, 'Ready - Click cast button to connect');
+        document.getElementById('appIdNotice').style.display = 'none';
+        log('Cast initialized successfully', 'success');
+        log('Look for the Cast icon in the page or Chrome toolbar');
+
+        // Log current cast state
+        const state = context.getCastState();
+        log(`Initial cast state: ${state}`);
+        if (state === 'NO_DEVICES_AVAILABLE') {
+          log('No compatible devices yet - Chromecast may need config sync', 'error');
+        } else if (state === 'NOT_CONNECTED') {
+          log('Devices available! Click Start Casting', 'success');
+        }
+      } catch (err) {
+        log(`Error initializing Cast: ${err.message}`, 'error');
+        console.error(err);
+      }
+    }
+
+    function sendMessage() {
+      if (!castSession) {
+        log('Not connected to Chromecast', 'error');
+        return;
+      }
+
+      const message = document.getElementById('messageInput').value;
+      castSession.sendMessage(NAMESPACE, { message: message })
+        .then(() => log(`Sent message: ${message}`, 'success'))
+        .catch(err => log(`Error: ${err}`, 'error'));
+    }
+
+    function sendBackground(bg) {
+      if (!castSession) {
+        log('Not connected to Chromecast', 'error');
+        return;
+      }
+
+      castSession.sendMessage(NAMESPACE, { background: bg })
+        .then(() => log('Background changed', 'success'))
+        .catch(err => log(`Error: ${err}`, 'error'));
+    }
+
+    function castUrl() {
+      if (!castSession) {
+        log('Not connected to Chromecast', 'error');
+        return;
+      }
+
+      const url = document.getElementById('urlInput').value.trim();
+      if (!url) {
+        log('Please enter a URL', 'error');
+        return;
+      }
+
+      log(`Casting URL: ${url}`);
+      castSession.sendMessage(NAMESPACE, { loadUrl: url })
+        .then(() => log('URL sent to receiver', 'success'))
+        .catch(err => log(`Error: ${err}`, 'error'));
+    }
+
+    function clearUrl() {
+      if (!castSession) {
+        log('Not connected to Chromecast', 'error');
+        return;
+      }
+
+      log('Clearing URL, showing clock');
+      castSession.sendMessage(NAMESPACE, { clearUrl: true })
+        .then(() => log('Cleared', 'success'))
+        .catch(err => log(`Error: ${err}`, 'error'));
+    }
+
+    function startCasting() {
+      if (!castApiReady) {
+        log('Cast API not ready yet', 'error');
+        return;
+      }
+
+      const context = cast.framework.CastContext.getInstance();
+      const state = context.getCastState();
+      log(`Current cast state: ${state}`);
+
+      if (state === cast.framework.CastState.NO_DEVICES_AVAILABLE) {
+        log('No compatible Cast devices found for this app', 'error');
+        log('This usually means the Chromecast hasnt picked up the test app config');
+      }
+
+      log('Requesting cast session...');
+      context.requestSession()
+        .then(() => {
+          log('Session request successful', 'success');
+        })
+        .catch((err) => {
+          log(`Session request failed: ${err}`, 'error');
+          if (err === 'cancel') {
+            log('User cancelled the cast dialog');
+          } else if (err === 'timeout') {
+            log('Cast request timed out - is Chromecast on?');
+          } else if (err === 'receiver_unavailable') {
+            log('No receivers found - check if Chromecast is registered as test device');
+          }
+        });
+    }
+
+    let castApiReady = false;
+
+    // This callback is fired when Cast SDK loads
+    window['__onGCastApiAvailable'] = function(isAvailable) {
+      log(`Cast API callback fired: available=${isAvailable}`);
+      if (isAvailable) {
+        castApiReady = true;
+        log('Cast API ready - enter App ID and click Initialize', 'success');
+      } else {
+        log('Cast API not available on this browser', 'error');
+      }
+    };
+
+    function initializeCast() {
+      const appId = document.getElementById('appIdInput').value.trim();
+      if (!appId) {
+        log('Please enter an App ID', 'error');
+        return;
+      }
+
+      log(`Initializing Cast with App ID: ${appId}`);
+
+      if (!castApiReady) {
+        log('Waiting for Cast API to load...');
+        // Check if it loaded but callback didn't fire
+        if (typeof cast !== 'undefined' && cast.framework) {
+          log('Cast framework found, proceeding...');
+          castApiReady = true;
+        } else {
+          log('Cast API not loaded. Checking Chrome Cast support...', 'error');
+          log('Make sure: 1) Using Chrome 2) Cast extension enabled 3) Not incognito', 'error');
+          return;
+        }
+      }
+
+      initializeCastApi(appId);
+    }
+
+    // Load Cast SDK
+    log('Loading Cast SDK...');
+    const script = document.createElement('script');
+    script.src = 'https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1';
+    script.onerror = () => log('Failed to load Cast SDK script', 'error');
+    script.onload = () => log('Cast SDK script loaded, waiting for callback...');
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>

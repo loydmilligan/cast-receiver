@@ -1,0 +1,6 @@
+{
+  "project": {
+    "name": "cast-test",
+    "description": "Chromecast dynamic content casting proof of concept"
+  }
+}

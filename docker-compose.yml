@@ -1,0 +1,9 @@
+services:
+  cast-receiver:
+    build: .
+    container_name: cast-receiver
+    restart: unless-stopped
+    ports:
+      - "9123:8080"
+    environment:
+      - NODE_ENV=production
