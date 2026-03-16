@@ -108,6 +108,76 @@
       opacity: 0.6;
     }
 
+    .habits-section {
+      text-align: center;
+      margin-top: 30px;
+      display: none;
+    }
+
+    .habits-title {
+      font-size: 20px;
+      opacity: 0.7;
+      margin-bottom: 16px;
+    }
+
+    .habits-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+
+    .habit-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 12px 16px;
+      text-align: left;
+    }
+
+    .habit-color {
+      width: 8px;
+      height: 40px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .habit-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .habit-name {
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .habit-target {
+      font-size: 12px;
+      opacity: 0.6;
+    }
+
+    .habit-progress {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .habit-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .habit-dot.filled {
+      background: currentColor;
+    }
+
     #widget-frame {
       width: 100%;
       height: 400px;
@@ -206,6 +276,12 @@
         <div class="weather-desc" id="weather-desc"></div>
         <div class="weather-location" id="weather-location"></div>
       </div>
+
+      <!-- Habits section -->
+      <div class="habits-section" id="habits-section">
+        <div class="habits-title" id="habits-title">Today's Habits</div>
+        <div class="habits-grid" id="habits-grid"></div>
+      </div>
     </div>
 
     <!-- Right Panel: Widget iframe + Recently played -->
@@ -267,6 +343,78 @@
       document.getElementById('weather-desc').textContent = data.weather[0].description;
       document.getElementById('weather-location').textContent = data.name;
       document.getElementById('weather-icon').innerHTML = `<img src="https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png" alt="">`;
+    }
+
+    function updateHabitsUI(neohabitData) {
+      if (!neohabitData || !neohabitData.habits) return;
+
+      const section = document.getElementById('habits-section');
+      const grid = document.getElementById('habits-grid');
+      const title = document.getElementById('habits-title');
+
+      title.textContent = neohabitData.projectName || "Today's Habits";
+      grid.innerHTML = '';
+
+      const today = new Date().toISOString().split('T')[0];
+
+      neohabitData.habits.forEach(habit => {
+        const item = document.createElement('div');
+        item.className = 'habit-item';
+
+        // Calculate progress for today
+        let target = null;
+        if (habit.targets && habit.targets.length > 0) {
+          // Get the most recent target
+          target = habit.targets[habit.targets.length - 1];
+        }
+
+        // Count today's completions
+        let todayCount = 0;
+        if (habit.data) {
+          habit.data.forEach(d => {
+            if (d.date && d.date.startsWith(today)) {
+              todayCount += (d.value !== undefined ? 1 : 1);
+            }
+          });
+        }
+
+        // Build progress dots
+        let progressHtml = '';
+        if (target && target.value) {
+          const targetValue = target.value;
+          for (let i = 0; i < targetValue; i++) {
+            const filled = i < todayCount ? 'filled' : '';
+            progressHtml += `<div class="habit-dot ${filled}" style="color: ${habit.color}"></div>`;
+          }
+        }
+
+        // Target text
+        let targetText = '';
+        if (target) {
+          if (target.period === 1) {
+            targetText = `${target.value}x daily`;
+          } else if (target.period === 7) {
+            targetText = `${target.value}x weekly`;
+          } else {
+            targetText = `${target.value}x per ${target.period} days`;
+          }
+        } else {
+          targetText = 'Tracking';
+        }
+
+        item.innerHTML = `
+          <div class="habit-color" style="background: ${habit.color}"></div>
+          <div class="habit-info">
+            <div class="habit-name">${escapeHtml(habit.name)}</div>
+            <div class="habit-target">${targetText}</div>
+          </div>
+          <div class="habit-progress">${progressHtml}</div>
+        `;
+
+        grid.appendChild(item);
+      });
+
+      section.style.display = 'block';
     }
 
     // Iframe rotation functionality
@@ -351,6 +499,11 @@
       // Handle fallback configuration
       if (event.data.fallbackConfig) {
         handleFallbackConfig(event.data.fallbackConfig);
+      }
+
+      // Handle Neohabit data
+      if (event.data.fallbackConfig && event.data.fallbackConfig.neohabit) {
+        updateHabitsUI(event.data.fallbackConfig.neohabit);
       }
 
       if (event.data.loadUrl) {
