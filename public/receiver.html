@@ -26,7 +26,7 @@
     .left-panel {
       display: flex;
       flex-direction: column;
-      justify-content: center;
+      justify-content: flex-start;
       align-items: center;
     }
 
@@ -38,7 +38,7 @@
     }
 
     .time {
-      font-size: 120px;
+      font-size: 72px;
       font-weight: 200;
       letter-spacing: -4px;
       text-shadow: 0 4px 30px rgba(0,0,0,0.5);
@@ -277,6 +277,12 @@
         <div class="weather-location" id="weather-location"></div>
       </div>
 
+      <!-- Habits section -->
+      <div class="habits-section" id="habits-section">
+        <div class="habits-title" id="habits-title">Today's Habits</div>
+        <div class="habits-grid" id="habits-grid"></div>
+      </div>
+
       <!-- Recently played section -->
       <div class="recent-section" id="recentSection">
         <h2>Recently Played</h2>
@@ -286,14 +292,8 @@
       </div>
     </div>
 
-    <!-- Right Panel: Habits + Widget iframe -->
+    <!-- Right Panel: Widget iframe only -->
     <div class="right-panel">
-      <!-- Habits section -->
-      <div class="habits-section" id="habits-section">
-        <div class="habits-title" id="habits-title">Today's Habits</div>
-        <div class="habits-grid" id="habits-grid"></div>
-      </div>
-
       <!-- Widget iframe -->
       <iframe id="widget-frame"></iframe>
     </div>
